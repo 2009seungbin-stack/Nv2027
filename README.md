@@ -106,3 +106,18 @@ uv pip install -e ".[anthropic]"                                   # anthropic �
 - `corpus/`: 저장소 소유자 원고(기준)와 합성 대조 샘플, 장치별 주석. 시뮬레이터·narrator는 읽지 않는다.
 - 분석: `docs/analysis/massage_001.md`
 - Auditor는 고치지 않는다. 신호마다 되돌아갈 층(world/pressure/collision/decision/state/residue/narrator)을 가리킨다.
+
+## 연재 작품 저장소 (`works/`, `cte works ...`)
+
+여러 작품의 장기 연재용 폴더 규약 + lint + 상태 누적 + 권한 있는 RAG. 규칙은 `works/README.md`, 에이전트 규칙은 `works/CLAUDE.md`.
+
+```bash
+.venv/bin/cte works new <id> --title "제목"          # 작품 골격
+.venv/bin/cte works character|entity|plot|episode|inbox ...   # 템플릿 문서
+.venv/bin/cte works lint <id>                        # 설정 문서화·복선·비밀 누설·말투·회차 기록 검사
+.venv/bin/cte works rebuild <id>                     # state/(현재 상태·연표·스레드·복선·인물 이력) + RAG 색인
+.venv/bin/cte works packet <id> --episode N          # N화 집필 패킷(미래 회차 제외)
+.venv/bin/cte works search <id> "질의" --as character:<인물> --as-of N
+```
+
+예시: `works/massage/` (「마사지 해드립니다」 1화 기준 — 원고에 나온 사실만, 모르는 것은 작가 기입 필요로 비워 둠).

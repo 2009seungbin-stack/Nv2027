@@ -278,5 +278,178 @@ def structure_audit(world: WorldArg, scene: Annotated[str, typer.Option(help="�
         _echo_json(audit_scene(c, scene).model_dump())
 
 
+# ------------------------------------------------------------------ works
+
+works_app = typer.Typer(help="연재 작품 폴더(RAG·설정·복선·회차 상태) 관리", no_args_is_help=True)
+app.add_typer(works_app, name="works")
+RootOpt = Annotated[Path, typer.Option("--root", help="작품들이 있는 폴더")]
+WorkArg = Annotated[str, typer.Argument(help="작품 id 또는 작품 폴더 경로")]
+
+
+def _work_path(work: str, root: Path) -> Path:
+    path = Path(work)
+    return path if (path / "work.md").exists() else root / work
+
+
+def _done(path: Path) -> None:
+    typer.echo(f"생성: {path}")
+
+
+@works_app.command("list")
+def works_list(root: RootOpt = Path("works")) -> None:
+    """작품 목록과 진행 상황."""
+    from cte.works.repo import WorkRepo
+
+    rows = []
+    for folder in sorted(p for p in root.iterdir() if (p / "work.md").exists()) if root.exists() else []:
+        repo = WorkRepo.load(folder)
+        w = repo.work
+        rows.append(
+            {
+                "id": folder.name,
+                "title": w.title if w else "?",
+                "status": w.status.value if w else "?",
+                "latest_episode": repo.latest_episode,
+                "characters": len(repo.characters),
+            }
+        )
+    _echo_json(rows)
+
+
+@works_app.command("new")
+def works_new(work_id: str, title: Annotated[str, typer.Option(help="작품 제목")], root: RootOpt = Path("works")) -> None:
+    """새 작품 폴더를 만든다."""
+    from cte.works.scaffold import new_work
+
+    _done(new_work(root, work_id, title))
+
+
+@works_app.command("character")
+def works_character(work: WorkArg, char_id: str, name: Annotated[str, typer.Option(help="이름")], root: RootOpt = Path("works")) -> None:
+    """인물 시트를 만든다."""
+    from cte.works.scaffold import add_character
+
+    _done(add_character(_work_path(work, root), char_id, name))
+
+
+@works_app.command("entity")
+def works_entity(work: WorkArg, kind: str, entity_id: str, name: Annotated[str, typer.Option(help="이름")], root: RootOpt = Path("works")) -> None:
+    """설정 문서를 만든다. kind: place | item | faction | system | term"""
+    from cte.works.models import EntityKind
+    from cte.works.scaffold import add_entity
+
+    _done(add_entity(_work_path(work, root), EntityKind(kind), entity_id, name))
+
+
+@works_app.command("plot")
+def works_plot(work: WorkArg, kind: str, doc_id: str, title: Annotated[str, typer.Option(help="제목")], root: RootOpt = Path("works")) -> None:
+    """작가 전용 문서를 만든다. kind: arc | foreshadow | secret"""
+    from cte.works.scaffold import add_plot
+
+    if kind not in {"arc", "foreshadow", "secret"}:
+        raise typer.BadParameter("kind는 arc | foreshadow | secret")
+    _done(add_plot(_work_path(work, root), kind, doc_id, title))
+
+
+@works_app.command("episode")
+def works_episode(work: WorkArg, number: Annotated[int | None, typer.Option(help="회차(생략하면 다음 회차)")] = None, root: RootOpt = Path("works")) -> None:
+    """회차 폴더(episode.md / notes.md / state.md)를 만든다."""
+    from cte.works.scaffold import add_episode
+
+    _done(add_episode(_work_path(work, root), number))
+
+
+@works_app.command("inbox")
+def works_inbox(
+    work: WorkArg,
+    title: Annotated[str, typer.Option(help="제목")],
+    text: Annotated[str, typer.Option(help="내용")],
+    source: Annotated[str, typer.Option(help="출처")] = "작가",
+    root: RootOpt = Path("works"),
+) -> None:
+    """정리 전 설정을 inbox에 넣는다(정리되기 전까지 lint가 발행을 막는다)."""
+    from cte.works.scaffold import add_inbox
+
+    _done(add_inbox(_work_path(work, root), title, text, source))
+
+
+@works_app.command("lint")
+def works_lint(work: WorkArg, strict: Annotated[bool, typer.Option(help="경고도 실패로")] = False, root: RootOpt = Path("works")) -> None:
+    """설정·인물·복선·회차 기록 검사. 오류가 있으면 종료 코드 1."""
+    from cte.works.lint import lint
+    from cte.works.repo import WorkRepo
+
+    report = lint(WorkRepo.load(_work_path(work, root)))
+    for f in report.findings:
+        typer.echo(f"{f.severity.upper():7} {f.code} {f.path}: {f.message}" + (f"\n        → {f.hint}" if f.hint else ""))
+    typer.echo(f"\n오류 {len(report.errors)} · 경고 {len(report.warnings)}")
+    if report.errors or (strict and report.warnings):
+        raise typer.Exit(code=1)
+
+
+@works_app.command("rebuild")
+def works_rebuild(work: WorkArg, root: RootOpt = Path("works")) -> None:
+    """state/ 생성물과 RAG 색인을 다시 만든다."""
+    from cte.works.fold import rebuild_state
+    from cte.works.rag import RagIndex
+    from cte.works.repo import WorkRepo
+
+    repo = WorkRepo.load(_work_path(work, root))
+    written = rebuild_state(repo)
+    index = RagIndex.for_work(repo)
+    try:
+        n = index.rebuild(repo)
+    finally:
+        index.close()
+    typer.echo(f"state/ {len(written)}개 파일, 색인 청크 {n}개")
+
+
+@works_app.command("search")
+def works_search(
+    work: WorkArg,
+    query: str,
+    as_: Annotated[str, typer.Option("--as", help="author | assistant | reader | character:<id>")] = "assistant",
+    as_of: Annotated[int | None, typer.Option(help="이 회차까지 기준")] = None,
+    k: Annotated[int, typer.Option("-k", "--limit", help="결과 수")] = 8,
+    root: RootOpt = Path("works"),
+) -> None:
+    """권한 있는 RAG 검색(먼저 rebuild)."""
+    from cte.works.rag import RagIndex, Seeker
+    from cte.works.repo import WorkRepo
+
+    repo = WorkRepo.load(_work_path(work, root))
+    index = RagIndex.for_work(repo)
+    try:
+        hits = index.search(query, Seeker.parse(as_, as_of), k=k, names=repo.names())
+    finally:
+        index.close()
+    _echo_json([{"path": h.chunk.path, "section": h.chunk.section, "score": h.score, "why": h.why, "text": h.chunk.text} for h in hits])
+
+
+@works_app.command("packet")
+def works_packet(
+    work: WorkArg,
+    episode: Annotated[int, typer.Option(help="쓸 회차")],
+    out: Annotated[Path | None, typer.Option(help="파일로 저장")] = None,
+    root: RootOpt = Path("works"),
+) -> None:
+    """N화 집필 패킷(현재 상태·인물 말투·복선·비밀 금지어·관련 설정·체크리스트)."""
+    from cte.works.packet import build_packet
+    from cte.works.rag import RagIndex
+    from cte.works.repo import WorkRepo
+
+    repo = WorkRepo.load(_work_path(work, root))
+    index = RagIndex.for_work(repo)
+    try:
+        text = build_packet(repo, episode, index=index)
+    finally:
+        index.close()
+    if out:
+        out.write_text(text, encoding="utf-8")
+        typer.echo(f"저장: {out}")
+    else:
+        typer.echo(text)
+
+
 if __name__ == "__main__":  # pragma: no cover
     app()
