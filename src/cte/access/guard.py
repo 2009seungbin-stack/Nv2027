@@ -5,8 +5,8 @@
 
 1. Causal Ledger의 모든 엔티티를 ``Secrecy`` 메타데이터로 순회해 문자열 값(leaf)을
    "이 principal이 읽을 수 있음/없음"으로 나눈다.
-2. 금지 토큰 = (읽을 수 없는 값) − (읽을 수 있는 값). 차집합이므로 우연히 같은 문자열이
-   정당한 경로로도 존재하면 오탐하지 않는다. 엔티티 id도 leaf이므로, 타인의 믿음/숨은 사건
+2. 금지 토큰 = (읽을 수 없는 값) − (읽을 수 있는 값에 포함된 값). 우연히 같은 문자열이
+   정당한 경로로도 존재하면(부분 문자열 포함) 오탐하지 않는다. 엔티티 id도 leaf이므로, 타인의 믿음/숨은 사건
    id가 새는 것도 잡는다.
 3. 직렬화된 Context의 문자열 값에 금지 토큰이 (정확히 일치 또는 충분히 긴 부분 문자열로)
    나타나면 위반이다.
@@ -117,9 +117,15 @@ class LeakAuditor:
         return readable, unreadable
 
     def forbidden_tokens(self, principal: Principal) -> set[str]:
-        """이 principal의 context에 나타나면 안 되는 값들."""
+        """이 principal의 context에 나타나면 안 되는 값들.
+
+        읽을 수 있는 값에 *부분 문자열로* 이미 들어 있는 값은 제외한다. 예: 사건의 표면
+        '편지를 다시 들여다본다'(객관 기록)는 목격자 본인의 관찰 '서연이 편지를 다시 들여다본다'에
+        정당하게 포함되어 있으므로, 목격자 context에 나타나도 누출의 증거가 아니다.
+        """
         readable, unreadable = self.partition(principal)
-        return {t for t in unreadable - readable if len(t) >= MIN_EXACT_TOKEN_LEN}
+        readable_blob = "\x00".join(readable)
+        return {t for t in unreadable - readable if len(t) >= MIN_EXACT_TOKEN_LEN and t not in readable_blob}
 
     def find_leaks(self, context: BaseModel, principal: Principal) -> list[Leak]:
         """Context의 직렬화 결과에서 금지 값을 찾는다."""

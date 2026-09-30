@@ -19,7 +19,7 @@ from cte.tracing import CrossLedgerWriteError, ModuleRunRecorder
 from cte.workspace import Workspace
 
 SRC = pathlib.Path(__file__).resolve().parents[1] / "src" / "cte"
-AUTHORIAL_FREE_PACKAGES = ["domain", "causal", "access", "llm", "storage", "phase2"]
+AUTHORIAL_FREE_PACKAGES = ["domain", "causal", "access", "llm", "storage", "phase2", "sim"]
 AUTHORIAL_FREE_MODULES = ["tracing.py", "ids.py"]
 
 
@@ -41,7 +41,7 @@ def test_agent_side_code_never_imports_authorial():
 
 
 def test_importing_context_layer_does_not_load_authorial():
-    code = "import sys, cte.access, cte.llm, cte.phase2.interfaces; print(any(m.startswith('cte.authorial') for m in sys.modules))"
+    code = "import sys, cte.access, cte.llm, cte.phase2.interfaces, cte.sim; print(any(m.startswith('cte.authorial') for m in sys.modules))"
     out = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, check=True)
     assert out.stdout.strip() == "False"
 

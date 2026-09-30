@@ -13,6 +13,7 @@ from enum import StrEnum
 from pydantic import Field
 
 from cte.domain.base import (
+    DomainModel,
     Entity,
     EntityKind,
     NodeRef,
@@ -62,6 +63,33 @@ class EventOutcome(StrEnum):
     NOT_APPLICABLE = "not_applicable"
 
 
+class ClaimSource(StrEnum):
+    """명제가 어떤 경로로 지각 가능해졌는가."""
+
+    SPEECH = "speech"
+    """누군가 말로 주장했다(거짓일 수 있다). 청자의 믿음은 화자에 대한 신뢰로 가중된다."""
+    SIGHT = "sight"
+    """눈으로 보이는 사실."""
+    INSPECTION = "inspection"
+    """행위자가 직접 살펴 알아낸 것(행위자만 지각)."""
+
+
+class Claim(DomainModel):
+    """사건 표면에서 지각될 수 있는 구조화된 명제.
+
+    존재 이유: 믿음은 관찰에서만 생겨야 하는데(원칙 5), 자유 텍스트 관찰에서 믿음을 만들면
+    정전 사실과 대조(misbelief 판정)할 수 없다. 그래서 사건은 '지각될 수 있는 명제'를 구조화해 싣고,
+    관찰 분배기가 관찰자별로 그중 무엇을 지각했는지 고른다. 주장된 명제는 참이라는 보장이 없다.
+    """
+
+    subject: str = Field(min_length=1, description="주어(Proposition/CanonFact와 같은 매칭 키).")
+    predicate: str = Field(min_length=1, description="술어.")
+    object: str | None = Field(default=None, description="목적어/값.")
+    text: str = Field(min_length=1, description="지각된 형태의 문장.")
+    source: ClaimSource = Field(description="지각 경로.")
+    asserted_by: str | None = Field(default=None, description="SPEECH일 때 화자. 청자 신뢰 가중과 소문 추적에 쓴다.")
+
+
 class Event(Entity):
     """객관적으로 일어난 일."""
 
@@ -78,6 +106,10 @@ class Event(Entity):
     objective_description: str = Field(min_length=1, description="실제로 일어난 일의 완전한 기술(ground truth).")
     perceivable_surface: str = Field(default="", description="원칙적으로 지각 가능한 표면. 관찰 분배기가 관찰 요약의 재료로 쓴다.")
     hidden_aspects: list[str] = Field(default_factory=list, description="어떤 경로로도 직접 지각되지 않는 측면(속마음, 숨긴 손동작 등).")
+    surface_claims: list[Claim] = Field(default_factory=list, description="표면에서 지각될 수 있는 명제(발화 내용, 보이는 사실, 조사로 알아낸 것).")
+    secondary_location_ids: list[str] = Field(default_factory=list, description="같이 지각 가능한 다른 장소(이동의 도착지 등).")
+    covert: bool = Field(default=False, description="은밀한 행동인지. 참이면 행위자에게 주의를 둔 사람만 지각할 가능성이 높다.")
+    magnitude: float = Field(default=0.5, ge=0.0, le=1.0, description="사건의 세기. 세계 중단이 누구의 행동을 끊는지 판정.")
     attempted_goal: str | None = Field(default=None, description="행위자가 이루려던 것. outcome과 함께 실패 잔여물의 재료.")
     outcome: EventOutcome = Field(default=EventOutcome.NOT_APPLICABLE, description="시도 대비 결과. 실패를 성공으로 고치지 않는다.")
     caused_by_event_ids: list[str] = Field(default_factory=list, description="이 사건을 직접 유발한 선행 사건들.")
@@ -132,6 +164,8 @@ class EventObservation(Entity):
     perceived_summary: str = Field(min_length=1, description="관찰자가 지각한 내용(본인의 해석이 섞인 주관적 기술).")
     perceived_actor_ids: list[str] = Field(default_factory=list, description="관찰자가 행위자라고 여긴 인물(틀릴 수 있음).")
     told_by_id: str | None = Field(default=None, description="TOLD 경로의 전달자. 소문 전파 경로 추적.")
+    perceived_claims: list[Claim] = Field(default_factory=list, description="관찰자가 지각한 명제들. 믿음 갱신의 유일한 재료.")
+    perceived_object_ids: list[str] = Field(default_factory=list, description="관찰자가 사건에서 알아본 물건들. 기억의 OBJECT 단서.")
     fidelity: float = sfield(Secrecy.SIMULATOR, default=1.0, description="객관적 사건 대비 정확도. 관찰자 본인은 모른다.", ge=0.0, le=1.0)
     missed_aspects: list[str] = sfield(Secrecy.SIMULATOR, default_factory=list, description="주의 사각지대 등으로 놓친 측면.")
     distortion_note: str = sfield(Secrecy.SIMULATOR, default="", description="왜곡이 생긴 이유(감사용).")

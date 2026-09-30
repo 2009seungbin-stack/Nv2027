@@ -26,6 +26,12 @@ _FORCE_TO_CONDITION: dict[PressureKind, ConditionKind] = {
 
 _CONSTRAINT_TO_CONDITION: dict[ConstraintKind, ConditionKind] = {k: ConditionKind.CONSTRAINT for k in ConstraintKind}
 
+DEFAULT_BLOCKS: dict[ConstraintKind, list[str]] = {
+    ConstraintKind.NO_EXIT: ["move"],
+    ConstraintKind.COMMUNICATION_CUT: ["call"],
+}
+"""제약 종류별로 기본적으로 막히는 행동. 행동의 *결과* 가 아니라 *가능 공간* 만 좁힌다."""
+
 
 def place_pressure(
     pressure: ScenePressure,
@@ -51,6 +57,8 @@ def place_pressure(
                     disclosure=force.disclosure,
                     started_tick=tick,
                     expires_tick=tick + force.duration_ticks if force.duration_ticks else None,
+                    manifests_at_tick=tick + force.manifests_after_ticks if force.manifests_after_ticks else None,
+                    manifest_description=force.manifest_description,
                 )
             )
         for constraint in pressure.constraints:
@@ -63,6 +71,9 @@ def place_pressure(
                     magnitude=1.0,
                     disclosure=constraint.disclosure,
                     started_tick=tick,
+                    blocks_actions=list(
+                        constraint.blocks_actions if constraint.blocks_actions is not None else DEFAULT_BLOCKS.get(constraint.constraint_kind, [])
+                    ),
                 )
             )
         # causal에 남는 reason은 세계 내 중립 문구다. 작가 의도는 여기 쓰지 않는다.

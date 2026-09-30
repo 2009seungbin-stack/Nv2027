@@ -78,6 +78,10 @@ class PressureForce(AuthorialValue):
     location_id: str | None = Field(default=None, description="작용 장소(None이면 장면 장소).")
     disclosure: Disclosure = Field(default=Disclosure.PUBLIC, description="지각 가능 여부.")
     duration_ticks: int | None = Field(default=None, ge=1, description="지속 시간(None=해제 사건 전까지).")
+    manifests_after_ticks: int | None = Field(
+        default=None, ge=1, description="배치 후 몇 tick 뒤 세계 사건으로 드러나는가(제3자 도착 등). 결과가 아니라 '일어날 일'만 정한다."
+    )
+    manifest_description: str = Field(default="", description="드러나는 순간 지각되는 모습.")
 
 
 class ConstraintKind(StrEnum):
@@ -94,6 +98,9 @@ class SceneConstraint(AuthorialValue):
     """장면의 가능 공간을 좁히는 제약."""
 
     constraint_kind: ConstraintKind = Field(description="제약 종류.")
+    blocks_actions: list[str] | None = Field(
+        default=None, description="막는 행동 종류. None이면 constraint_kind의 기본값(no_exit→move, communication_cut→call)."
+    )
     description: str = Field(min_length=1, description="세계 내 제약(전화가 끊김 등).")
     location_id: str | None = Field(default=None, description="작용 장소.")
     disclosure: Disclosure = Field(default=Disclosure.PUBLIC, description="지각 가능 여부.")

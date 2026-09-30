@@ -73,6 +73,7 @@ JUN_BELIEF = "식탁 위 편지는 내가 쓴 것이다"
 JUN_MEMORY = "사랑채에서 밤새 아버지 필체를 연습하던 기억"
 JUN_PEN = "잉크 묻은 만년필"
 HIDDEN_BROKER = "부동산 중개인이 내일 아침 첫 배로 도착한다"
+BROKER_ARRIVAL = "누군가 대문을 세게 두드린다"
 AUTHOR_RATIONALE = "서연이 편지의 진위를 스스로 의심하게 만드는 폐쇄 공간을 만든다"
 AUTHOR_ANSWER = "아버지는 빚을 갚기 위해 남쪽 섬의 염전으로 갔다"
 AUTHOR_PLAN = "2부에서 서연은 필체의 미세한 차이를 발견할 수도 있다"
@@ -185,7 +186,14 @@ def seed_demo(causal: CausalLedgerStore, authorial: AuthorialLedgerStore, *, aut
         location_id=KITCHEN,
         forces=[
             PressureForce(pressure_kind=PressureKind.ENVIRONMENT, description="장맛비로 마을 다리가 물에 잠겼다", magnitude=0.8),
-            PressureForce(pressure_kind=PressureKind.THIRD_PARTY, description=HIDDEN_BROKER, magnitude=0.6, disclosure=Disclosure.HIDDEN),
+            PressureForce(
+                pressure_kind=PressureKind.THIRD_PARTY,
+                description=HIDDEN_BROKER,
+                magnitude=0.65,
+                disclosure=Disclosure.HIDDEN,
+                manifests_after_ticks=4,
+                manifest_description=BROKER_ARRIVAL,
+            ),
         ],
         constraints=[SceneConstraint(constraint_kind=ConstraintKind.COMMUNICATION_CUT, description="전화선이 끊겨 신호음이 들리지 않는다")],
         rationale=AUTHOR_RATIONALE,

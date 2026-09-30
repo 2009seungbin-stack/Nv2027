@@ -29,7 +29,7 @@ from cte.domain.character import (
     PublicProfile,
     Temperament,
 )
-from cte.domain.event import Event, EventKind, EventObservation, EventOutcome, PerceptionChannel
+from cte.domain.event import Claim, ClaimSource, Event, EventKind, EventObservation, EventOutcome, PerceptionChannel
 from cte.domain.memory import CueKey, CueKind, MemoryTrace, RetrievalCue
 from cte.domain.objects import ObjectState
 from cte.domain.promise import CommitmentKind, CommitmentStatus, Obligation, Promise
@@ -67,6 +67,8 @@ __all__ = [
     "CanonFact",
     "CharacterDynamicState",
     "CharacterStableTraits",
+    "Claim",
+    "ClaimSource",
     "CommitmentKind",
     "CommitmentStatus",
     "ConditionKind",

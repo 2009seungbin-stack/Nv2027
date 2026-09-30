@@ -58,6 +58,9 @@ class WorldCondition(DomainModel):
     disclosure: Disclosure = Field(default=Disclosure.PUBLIC, description="지각 가능한 조건인지(폭우) 숨은 조건인지(무너지기 직전의 다리).")
     started_tick: int = Field(default=0, ge=0, description="조건이 시작된 tick.")
     expires_tick: int | None = Field(default=None, description="조건이 끝나는 tick(없으면 해제 사건 전까지 지속).")
+    blocks_actions: list[str] = Field(default_factory=list, description="이 조건이 막는 행동 종류(move, call 등). 충돌 해소기가 참조.")
+    manifests_at_tick: int | None = Field(default=None, description="숨은 조건이 세계 사건으로 드러나는 tick. 세계 중단기가 이 시점에 INTERRUPTION을 낸다.")
+    manifest_description: str = Field(default="", description="드러나는 순간 지각되는 모습(비우면 description).")
 
     def instance_secrecy(self) -> Secrecy:
         return Secrecy.PUBLIC if self.disclosure is Disclosure.PUBLIC else Secrecy.HIDDEN_TRUTH

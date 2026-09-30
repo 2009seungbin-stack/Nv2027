@@ -160,6 +160,13 @@ class ConditionView(ContextView):
     magnitude: float
 
 
+class ExitView(ContextView):
+    """지금 장소에서 갈 수 있는 인접 장소(공개 정보). 막혀 있는지 여부는 조건으로만 드러난다."""
+
+    location_id: str
+    name: str
+
+
 class SituationView(ContextView):
     """지금 이곳. 장소의 숨은 특징과 숨은 조건은 없다."""
 
@@ -170,6 +177,7 @@ class SituationView(ContextView):
     location_description: str | None = Field(description="장소의 공개 묘사.")
     conditions: list[ConditionView] = Field(description="지각 가능한 조건들.")
     co_present_character_ids: list[str] = Field(description="같은 장소에 있는 인물들.")
+    exits: list[ExitView] = Field(description="인접 장소들.")
 
 
 # ----------------------------------------------------------------------- mind

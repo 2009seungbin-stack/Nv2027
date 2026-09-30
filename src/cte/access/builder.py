@@ -22,6 +22,7 @@ from cte.access.views import (
     CommitmentView,
     ConditionView,
     DesireView,
+    ExitView,
     FearView,
     InnerStateView,
     KnownFactView,
@@ -201,6 +202,7 @@ class ContextBuilder:
                 if c.disclosure is Disclosure.PUBLIC
             ],
             co_present_character_ids=co_present,
+            exits=[ExitView(location_id=a, name=world.locations[a].name) for a in (loc.adjacent_ids if loc else []) if a in world.locations],
         )
 
     def _beliefs(self, cid: str) -> list[BeliefView]:

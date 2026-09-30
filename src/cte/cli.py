@@ -17,6 +17,7 @@ cte assess WORLD                    오신념 판정(시뮬레이터 전용 출�
 from __future__ import annotations
 
 import json
+from collections.abc import Callable
 from pathlib import Path
 from typing import Annotated
 
@@ -24,8 +25,13 @@ import typer
 
 from cte.access import ContextBuilder, LeakAuditor, Principal
 from cte.causal.provenance import ProvenanceGraph
+from cte.causal.store import CausalLedgerStore
 from cte.causal.truth import assess_all
 from cte.demo import seed_demo
+from cte.ids import new_id
+from cte.phase2.interfaces import StepResult
+from cte.sim import SceneStepper, SoftmaxSelector, run_branches
+from cte.tracing import ModuleRunRecorder
 from cte.workspace import Workspace
 
 app = typer.Typer(help="WR9 Causal Taste Engine — Phase 1 Causal Core", no_args_is_help=True)
@@ -150,3 +156,60 @@ def assess(world: WorldArg) -> None:
 
 if __name__ == "__main__":  # pragma: no cover
     app()
+
+
+def _stepper_factory(
+    scene: str, softmax: float | None, recorder_for: Callable[[CausalLedgerStore], ModuleRunRecorder]
+) -> Callable[[CausalLedgerStore, object], SceneStepper]:
+    def make(store: CausalLedgerStore, seed: object) -> SceneStepper:
+        selector = SoftmaxSelector(softmax) if softmax else None
+        return SceneStepper(store, scene_id=scene, seed=seed, selector=selector, recorder=recorder_for(store))
+
+    return make
+
+
+def _summarize(result: StepResult) -> dict[str, object]:
+    return {
+        "tick": result.tick,
+        "events": [f"[{e.outcome.value}] {e.objective_description}" for e in result.outcome.events],
+        "residues": len(result.residue_ids),
+        "beliefs": len(result.belief_ids),
+        "rejected": result.rejected,
+    }
+
+
+@app.command()
+def step(
+    world: WorldArg,
+    scene: Annotated[str, typer.Option(help="장면 id")] = "scene_1",
+    n: Annotated[int, typer.Option("-n", help="진행할 tick 수")] = 1,
+    seed: Annotated[str, typer.Option(help="branch seed")] = "0",
+    softmax: Annotated[float | None, typer.Option(help="후보 선택 softmax 온도(없으면 가장 긴급한 후보)")] = None,
+) -> None:
+    """장면을 n tick 진행한다(모든 모듈 입출력은 module_runs/JSONL에 기록)."""
+    ws = Workspace(world)
+    with ws.open_causal() as c:
+        stepper = _stepper_factory(scene, softmax, ws.causal_recorder)(c, seed)
+        _echo_json([_summarize(r) for r in stepper.run(n)])
+
+
+@app.command()
+def branches(
+    world: WorldArg,
+    seeds: Annotated[str, typer.Option(help="쉼표로 구분한 seed 목록")] = "0,1,2",
+    n: Annotated[int, typer.Option("-n", help="branch당 tick 수")] = 3,
+    scene: Annotated[str, typer.Option(help="장면 id")] = "scene_1",
+    softmax: Annotated[float | None, typer.Option(help="후보 선택 softmax 온도")] = 0.3,
+) -> None:
+    """현재 상태에서 seed별 branch를 만든다(world/branches/<run>/branch_<seed>.db). 원본 원장은 바뀌지 않는다."""
+    ws = Workspace(world)
+    out_dir = ws.root / "branches" / new_id("run")
+    with ws.open_causal() as c:
+        runs = run_branches(
+            c,
+            seeds=[s.strip() for s in seeds.split(",") if s.strip()],
+            steps=n,
+            directory=out_dir,
+            make_stepper=_stepper_factory(scene, softmax, lambda store: ModuleRunRecorder(store)),
+        )
+        _echo_json([{"seed": r.seed, "path": r.path, "state_hash": r.state_hash, "steps": [_summarize(s) for s in r.steps]} for r in runs])
