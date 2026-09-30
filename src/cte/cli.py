@@ -253,5 +253,30 @@ def branches(
         _echo_json([{"seed": r.seed, "path": r.path, "state_hash": r.state_hash, "steps": [_summarize(s) for s in r.steps]} for r in runs])
 
 
+DEFAULT_REFERENCE = Path("corpus/reference/massage_001.txt")
+
+
+@app.command("prose-profile")
+def prose_profile(
+    file: Annotated[Path, typer.Argument(help="검사할 원고(corpus 표기 규약)")],
+    reference: Annotated[Path, typer.Option(help="기준 원고")] = DEFAULT_REFERENCE,
+) -> None:
+    """문장 층 표면 지표와 기준 원고 대비 신호(어느 층으로 돌아갈지)를 출력한다. 텍스트는 고치지 않는다."""
+    from cte.audit import compare, profile
+
+    sample = profile(file.read_text(encoding="utf-8"))
+    ref = profile(reference.read_text(encoding="utf-8"))
+    _echo_json({"profile": sample.model_dump(), "signals": [sig.model_dump() for sig in compare(sample, ref)]})
+
+
+@app.command("structure-audit")
+def structure_audit(world: WorldArg, scene: Annotated[str, typer.Option(help="장면 id")] = "scene_1") -> None:
+    """Metallic Auditor: 장면의 인과 구조 문제와 되돌아갈 층을 출력한다(원장 읽기 전용)."""
+    from cte.audit import audit_scene
+
+    with Workspace(world).open_causal() as c:
+        _echo_json(audit_scene(c, scene).model_dump())
+
+
 if __name__ == "__main__":  # pragma: no cover
     app()

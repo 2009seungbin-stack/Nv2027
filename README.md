@@ -95,3 +95,14 @@ uv pip install -e ".[anthropic]"                                   # anthropic �
 - 응답은 스키마 → `ActionDraft` → `validate_against(context)` 를 통과해야 후보가 된다.
   LLM 호출이 실패하면 규칙 기반 제안기로 대체되고, 실패 사유와 **LLM 원문 응답** 은 module run에 남는다.
 - 비용 감각: 실측 1회(데모, 준호, Opus 5.5 via Claude Code) 약 19초·$0.075. tick당 인물 수만큼 호출된다.
+
+## Metallic Auditor와 취향 기준 원고
+
+```bash
+.venv/bin/cte prose-profile corpus/contrast/massage_001_llm_default.txt   # 기준 원고 대비 문장 층 신호
+.venv/bin/cte structure-audit worlds/demo --scene scene_1                 # 장면 인과 구조 진단(읽기 전용)
+```
+
+- `corpus/`: 저장소 소유자 원고(기준)와 합성 대조 샘플, 장치별 주석. 시뮬레이터·narrator는 읽지 않는다.
+- 분석: `docs/analysis/massage_001.md`
+- Auditor는 고치지 않는다. 신호마다 되돌아갈 층(world/pressure/collision/decision/state/residue/narrator)을 가리킨다.

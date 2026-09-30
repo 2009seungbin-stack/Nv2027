@@ -1,0 +1,196 @@
+{
+  "source": "corpus/reference/massage_001.txt",
+  "author": "저장소 소유자(본인 원고)",
+  "annotations": [
+    {
+      "id": "title_spoiler",
+      "category": "design",
+      "learn": true,
+      "device": "제목이 결말을 미리 밝혀 극적 아이러니를 만든다",
+      "quote": "스팸 문자인 줄 알았는데, 주식이 박살났다",
+      "llm_default": "결과를 숨긴 채 순서대로 서술하고, 복선은 '그때까지만 해도 나는 몰랐다'로 따로 강조한다",
+      "cte_layer": "authorial",
+      "cte_mapping": "작가 원장의 결말 지식을 쓰는 파라텍스트 층(제목·회차명). narrator와 분리해야 한다(신규 설계)"
+    },
+    {
+      "id": "misbelief_prank",
+      "category": "design",
+      "learn": true,
+      "device": "주인공의 '장난이다'라는 확신이 곧 오신념이다",
+      "quote": "보자마자 스팸이라고 확신했다.",
+      "llm_default": "주인공이 반신반의하며 곧바로 진지하게 검토한다",
+      "cte_layer": "state",
+      "cte_mapping": "Belief(stance=BELIEVES) + BeliefTruthAssessment(FALSE)"
+    },
+    {
+      "id": "testable_rules",
+      "category": "design",
+      "learn": true,
+      "device": "퀘스트가 검증 가능한 규칙(대상·금액·시간·벌칙)이다",
+      "quote": "( 최소 금액 : 1,000 원 )",
+      "llm_default": "규칙이 모호하거나, 주인공이 규칙을 분석하며 '일단 해보기로 했다'고 결심한다",
+      "cte_layer": "pressure",
+      "cte_mapping": "ScenePressure: TIME_LIMIT + 숨은 조건(manifests_after_ticks=12h, 주가 하락)"
+    },
+    {
+      "id": "solution_planted",
+      "category": "design",
+      "learn": true,
+      "device": "해법(손재주·후배·손)을 같은 화에 깔아 두고 인물은 연결하지 못한다",
+      "quote": "내가 또 손재주가 좋은 편이라 이런 걸 잘 한다.",
+      "llm_default": "인물이 스스로 연결해 독자 대신 추론한다",
+      "cte_layer": "world",
+      "cte_mapping": "결과가 아니라 조건 배치: 공존 인물·물건·인물 특성. 연결은 독자에게"
+    },
+    {
+      "id": "unexplained_noise",
+      "category": "design",
+      "learn": true,
+      "device": "설명하지 않는 잡음을 그대로 둔다",
+      "quote": "이것도 연구해봐",
+      "llm_default": "모든 디테일에 의미를 붙이거나 해명한다",
+      "cte_layer": "world",
+      "cte_mapping": "관찰에는 있지만 어떤 믿음도 만들지 못하는 Claim/표면 — 설명 없이 남는다"
+    },
+    {
+      "id": "thread_cut",
+      "category": "design",
+      "learn": true,
+      "device": "추리가 결론 없이 다른 인물에 의해 끊긴다",
+      "quote": "근데 단순한 우연으로 치부하기엔 뭔가…",
+      "llm_default": "사색을 정리 문장으로 닫은 뒤 장면을 바꾼다",
+      "cte_layer": "collision",
+      "cte_mapping": "다른 인물의 독립 행동이 진행 중인 생각을 중단(원칙 7·8)"
+    },
+    {
+      "id": "cue_backstory",
+      "category": "design",
+      "learn": true,
+      "device": "과거 이야기는 현재 단어가 불러낼 때만, 현재 의심의 증거로 나온다",
+      "quote": "\"이 안마 썰은 하민이 말고는 말해준 적이 없는데 말이지.\"",
+      "llm_default": "도입부에 설정을 몰아서 설명하거나 질문 없이 회상한다",
+      "cte_layer": "state",
+      "cte_mapping": "RetrievalCue('마사지') → MemoryTrace(조부모 안마) (원칙 6)"
+    },
+    {
+      "id": "self_contradiction",
+      "category": "character",
+      "learn": true,
+      "device": "선언 직후 장면 구분을 넘어 뒤집는다",
+      "quote": "딱 거기까지만 불평을 늘어놓고, 나는 장난 문자를 머릿속에서 지워냈다.",
+      "llm_default": "감정 궤적이 일관되고 감정을 이름으로 설명한다",
+      "cte_layer": "residue",
+      "cte_mapping": "BeliefContradiction → UNFINISHED_THOUGHT 잔여물이 장면 전환 뒤에도 남음(감쇠)"
+    },
+    {
+      "id": "trust_vs_evidence",
+      "category": "character",
+      "learn": true,
+      "device": "'하민만 안다'와 '하민은 그럴 놈 아니다'의 충돌",
+      "quote": "그렇다고 임하민을 의심하자니, 절대로 이런 장난을 칠 녀석도 아니거니와 남의 이야기를 아무한테나 떠들고 다닐 녀석도 아니었다.",
+      "llm_default": "한쪽으로 빠르게 결론 내린다",
+      "cte_layer": "state",
+      "cte_mapping": "RelationshipState.trust 높음 + 반대 증거 관찰 → 믿음이 뒤집히지 않고 흔들림(contradiction)"
+    },
+    {
+      "id": "selfish_restraint",
+      "category": "character",
+      "learn": true,
+      "device": "하려다 멈춘 행동과 그 이기적 이유",
+      "quote": "일도 나름 재미있고 예쁜 여자도 있는 이 꿀 같은 알바 자리를 내던질 순 없으니까.",
+      "llm_default": "내면을 위생 처리하거나 도덕적으로 교정한다",
+      "cte_layer": "decision",
+      "cte_mapping": "제안됐지만 선택되지 않은 후보(두려움 > 욕망). StepResult.candidates에 이미 기록 → Phase 3 내면 재료"
+    },
+    {
+      "id": "concrete_stakes",
+      "category": "character",
+      "learn": true,
+      "device": "판돈이 숫자와 애칭으로 구체적이다",
+      "quote": "처음 샀을 때부터 우상향하여 슬슬 수익률이 15%를 넘어가고 있었고, 지금도 알바하면서 번 돈으로 꾸준히 추매를 하고 있다.",
+      "llm_default": "'모든 것을 잃을 수도 있다' 수준의 추상적 판돈",
+      "cte_layer": "state",
+      "cte_mapping": "Desire/Fear.target_ref + ObjectState/세계에 수치(보유액·수익률)"
+    },
+    {
+      "id": "voice_register",
+      "category": "character",
+      "learn": true,
+      "device": "나이·계층·관심사에서 나온 은어·욕설·풍자",
+      "quote": "\"마사지사는 뭔… 어디서 학원이라도 차렸나? 개같은 대한민국. 개인정보가 그냥 공공재라니까.\"",
+      "llm_default": "누가 말해도 같은 중립 문어체, 욕설 회피",
+      "cte_layer": "narrator",
+      "cte_mapping": "인물 말투 프로필(연령·계층·은어·욕설 허용도) 필요 — 현재 CharacterStableTraits에 없음(신규)"
+    },
+    {
+      "id": "split_sentence",
+      "category": "prose",
+      "learn": true,
+      "device": "한 문장을 행동 사이에 걸쳐 몇 문단 뒤에 완성한다",
+      "quote": "허나, 차마 손을 쓰기엔 너무…",
+      "llm_default": "문장은 그 자리에서 닫힌다",
+      "cte_layer": "narrator",
+      "cte_mapping": "렌더링 기법. 중단(interruption)이 문장 구조에 반영된 형태"
+    },
+    {
+      "id": "unexplained_pun",
+      "category": "prose",
+      "learn": true,
+      "device": "실존하는 썰렁한 아재개그 반복 + 무표정 반응, 해설 없음",
+      "quote": "\"진심으로 죽이고 싶다…\"",
+      "llm_default": "무난한 농담을 지어내고 '나도 모르게 웃음이 새어 나왔다'로 해설한다",
+      "cte_layer": "narrator",
+      "cte_mapping": "반응은 대사/행동으로. 감정 명명 금지"
+    },
+    {
+      "id": "deliberate_repetition",
+      "category": "prose",
+      "learn": true,
+      "device": "의도적 반복으로 박자를 만든다",
+      "quote": "왜인지는 모르겠지만, 어쩐지.",
+      "llm_default": "반복을 피해 동의어로 돌려 막는다",
+      "cte_layer": "narrator",
+      "cte_mapping": "렌더링 기법"
+    },
+    {
+      "id": "orthographic_play",
+      "category": "prose",
+      "learn": true,
+      "device": "표기 자체가 연기다",
+      "quote": "\"선배! 선배선배선배!!\"",
+      "llm_default": "정서법대로 정리한다",
+      "cte_layer": "narrator",
+      "cte_mapping": "렌더링 기법(인물 말투 프로필과 연동)"
+    },
+    {
+      "id": "noise_spelling",
+      "category": "noise",
+      "learn": false,
+      "device": "맞춤법·띄어쓰기 오류",
+      "quote": "[ 새 메세지 ]",
+      "llm_default": "-",
+      "cte_layer": "none",
+      "cte_mapping": "사람 흔적일 뿐 기술이 아님"
+    },
+    {
+      "id": "noise_heroine_checklist",
+      "category": "noise",
+      "learn": false,
+      "device": "히로인 외모 체크리스트(상투어 포함)",
+      "quote": "160cm 정도의 키와 가느다란 팔다리, 백옥같이 새하얀 피부를 가진 그녀.",
+      "llm_default": "-",
+      "cte_layer": "none",
+      "cte_mapping": "장르 관습. 취향 목표로 삼지 않는다"
+    },
+    {
+      "id": "noise_gaze",
+      "category": "noise",
+      "learn": false,
+      "device": "신체 부위 응시 묘사",
+      "quote": "자연스레 반바지의 엉덩이 라인과 매끈한 다리 쪽으로 시선이 내려가는 것을 급히 관리했다.",
+      "llm_default": "-",
+      "cte_layer": "none",
+      "cte_mapping": "장르 관습. 배울 것은 '멈춘 행동+이기적 이유' 구조뿐(selfish_restraint)"
+    }
+  ]
+}

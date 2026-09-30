@@ -19,7 +19,7 @@ from cte.tracing import CrossLedgerWriteError, ModuleRunRecorder
 from cte.workspace import Workspace
 
 SRC = pathlib.Path(__file__).resolve().parents[1] / "src" / "cte"
-AUTHORIAL_FREE_PACKAGES = ["domain", "causal", "access", "llm", "storage", "phase2", "sim"]
+AUTHORIAL_FREE_PACKAGES = ["domain", "causal", "access", "llm", "storage", "phase2", "sim", "audit"]
 AUTHORIAL_FREE_MODULES = ["tracing.py", "ids.py"]
 
 
