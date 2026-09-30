@@ -23,7 +23,8 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from cte.access.contexts import CharacterContext
 from cte.domain import Proposition, ResidueKind
-from cte.llm.adapter import AgentTask, LLMClient, LLMRequest, LLMResponse
+from cte.llm.adapter import AgentTask, LLMClient, LLMError, LLMRequest, LLMResponse
+from cte.llm.prompts import PROPOSAL_SCHEMA as _PROMPT_SCHEMA
 from cte.phase2.interfaces import ActionCandidate, ActionKind
 from cte.sim.common import josa
 
@@ -204,30 +205,44 @@ class ActionDraft(BaseModel):
     commitment: float = Field(default=0.5, ge=0.0, le=1.0)
 
 
-PROPOSAL_SCHEMA: dict[str, Any] = {
-    "type": "object",
-    "properties": {"candidates": {"type": "array", "items": ActionDraft.model_json_schema()}},
-    "required": ["candidates"],
-}
-"""LLM 구조화 출력 스키마."""
+# 구조화 출력 스키마는 cte.llm.prompts.PROPOSAL_SCHEMA(모든 백엔드 공용)를 쓴다.
+PROPOSAL_SCHEMA = _PROMPT_SCHEMA
 
 
 class LLMActionProposer:
     """LLM 기반 제안기. 요청에는 Context DTO만 실린다."""
 
-    def __init__(self, client: LLMClient, *, temperature: float = 0.8, seed: int | None = None, max_candidates: int = 6) -> None:
+    def __init__(
+        self,
+        client: LLMClient,
+        *,
+        temperature: float = 0.8,
+        seed: int | None = None,
+        max_candidates: int = 6,
+        fallback: HeuristicActionProposer | None = None,
+    ) -> None:
         self.client = client
         self.temperature = temperature
         self.seed = seed
         self.max_candidates = max_candidates
+        self.fallback = fallback
         self.last_rejections: list[str] = []
         self.last_response: LLMResponse | None = None
 
     def propose(self, context: CharacterContext) -> list[ActionCandidate]:
-        request = LLMRequest(task=AgentTask.PROPOSE_ACTIONS, context=context, response_schema=PROPOSAL_SCHEMA, temperature=self.temperature, seed=self.seed)
-        response = self.client.complete(request)
-        self.last_response = response
+        """LLM이 실패하면(네트워크·거절·형식 오류) 기록을 남기고 fallback(없으면 빈 목록 → WAIT)으로 간다."""
         self.last_rejections = []
+        self.last_response = None
+        request = LLMRequest(task=AgentTask.PROPOSE_ACTIONS, context=context, response_schema=PROPOSAL_SCHEMA, temperature=self.temperature, seed=self.seed)
+        try:
+            response = self.client.complete(request)
+        except LLMError as exc:
+            self.last_rejections.append(f"LLM 호출 실패: {exc}")
+            if self.fallback is None:
+                return []
+            self.last_rejections.append("규칙 기반 제안기로 대체")
+            return self.fallback.propose(context)
+        self.last_response = response
         try:
             data = response.parsed if response.parsed is not None else json.loads(response.text)
             raw = list(data.get("candidates", []))

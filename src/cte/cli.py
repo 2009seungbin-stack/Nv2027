@@ -29,8 +29,9 @@ from cte.causal.store import CausalLedgerStore
 from cte.causal.truth import assess_all
 from cte.demo import seed_demo
 from cte.ids import new_id
-from cte.phase2.interfaces import StepResult
-from cte.sim import SceneStepper, SoftmaxSelector, run_branches
+from cte.llm import make_client
+from cte.phase2.interfaces import ActionProposer, StepResult
+from cte.sim import HeuristicActionProposer, LLMActionProposer, SceneStepper, SoftmaxSelector, run_branches
 from cte.tracing import ModuleRunRecorder
 from cte.workspace import Workspace
 
@@ -154,16 +155,43 @@ def assess(world: WorldArg) -> None:
         _echo_json([a.model_dump(mode="json") for a in assess_all(c)])
 
 
-if __name__ == "__main__":  # pragma: no cover
-    app()
+class LLMOptions:
+    """step/branches 공용 LLM 선택 옵션."""
+
+    def __init__(self, llm: str, model: str | None, effort: str, bare: bool, llm_actors: str) -> None:
+        self.llm = llm
+        self.model = model
+        self.effort = effort
+        self.bare = bare
+        self.actors = [a.strip() for a in llm_actors.split(",") if a.strip()]
+
+    def proposers(self) -> tuple[ActionProposer | None, dict[str, ActionProposer]]:
+        """(기본 제안기, 인물별 제안기). heuristic이면 둘 다 비어 SceneStepper 기본값을 쓴다."""
+        if self.llm == "heuristic":
+            return None, {}
+        proposer = LLMActionProposer(make_client(self.llm, model=self.model, effort=self.effort, bare=self.bare), fallback=HeuristicActionProposer())
+        if self.actors:
+            return None, {a: proposer for a in self.actors}
+        return proposer, {}
+
+
+LlmOpt = Annotated[str, typer.Option("--llm", help="행동 후보 제안기: heuristic | claude-code | anthropic")]
+ModelOpt = Annotated[str | None, typer.Option(help="LLM 모델 id(기본 claude-opus-5-5)")]
+EffortOpt = Annotated[str, typer.Option(help="anthropic 백엔드 effort: low|medium|high|xhigh|max")]
+BareOpt = Annotated[bool, typer.Option(help="claude-code를 --bare로 실행(ANTHROPIC_API_KEY 필요)")]
+LlmActorsOpt = Annotated[str, typer.Option(help="LLM을 쓸 인물 id(쉼표 구분). 비우면 모든 인물")]
 
 
 def _stepper_factory(
-    scene: str, softmax: float | None, recorder_for: Callable[[CausalLedgerStore], ModuleRunRecorder]
+    scene: str,
+    softmax: float | None,
+    recorder_for: Callable[[CausalLedgerStore], ModuleRunRecorder],
+    llm: LLMOptions | None = None,
 ) -> Callable[[CausalLedgerStore, object], SceneStepper]:
     def make(store: CausalLedgerStore, seed: object) -> SceneStepper:
         selector = SoftmaxSelector(softmax) if softmax else None
-        return SceneStepper(store, scene_id=scene, seed=seed, selector=selector, recorder=recorder_for(store))
+        default, per_actor = llm.proposers() if llm else (None, {})
+        return SceneStepper(store, scene_id=scene, seed=seed, selector=selector, recorder=recorder_for(store), proposer=default, proposers=per_actor)
 
     return make
 
@@ -185,11 +213,16 @@ def step(
     n: Annotated[int, typer.Option("-n", help="진행할 tick 수")] = 1,
     seed: Annotated[str, typer.Option(help="branch seed")] = "0",
     softmax: Annotated[float | None, typer.Option(help="후보 선택 softmax 온도(없으면 가장 긴급한 후보)")] = None,
+    llm: LlmOpt = "heuristic",
+    model: ModelOpt = None,
+    effort: EffortOpt = "high",
+    bare: BareOpt = False,
+    llm_actors: LlmActorsOpt = "",
 ) -> None:
-    """장면을 n tick 진행한다(모든 모듈 입출력은 module_runs/JSONL에 기록)."""
+    """장면을 n tick 진행한다(모든 모듈 입출력과 LLM 원문 응답은 module_runs/JSONL에 기록)."""
     ws = Workspace(world)
     with ws.open_causal() as c:
-        stepper = _stepper_factory(scene, softmax, ws.causal_recorder)(c, seed)
+        stepper = _stepper_factory(scene, softmax, ws.causal_recorder, LLMOptions(llm, model, effort, bare, llm_actors))(c, seed)
         _echo_json([_summarize(r) for r in stepper.run(n)])
 
 
@@ -200,6 +233,11 @@ def branches(
     n: Annotated[int, typer.Option("-n", help="branch당 tick 수")] = 3,
     scene: Annotated[str, typer.Option(help="장면 id")] = "scene_1",
     softmax: Annotated[float | None, typer.Option(help="후보 선택 softmax 온도")] = 0.3,
+    llm: LlmOpt = "heuristic",
+    model: ModelOpt = None,
+    effort: EffortOpt = "high",
+    bare: BareOpt = False,
+    llm_actors: LlmActorsOpt = "",
 ) -> None:
     """현재 상태에서 seed별 branch를 만든다(world/branches/<run>/branch_<seed>.db). 원본 원장은 바뀌지 않는다."""
     ws = Workspace(world)
@@ -210,6 +248,10 @@ def branches(
             seeds=[s.strip() for s in seeds.split(",") if s.strip()],
             steps=n,
             directory=out_dir,
-            make_stepper=_stepper_factory(scene, softmax, lambda store: ModuleRunRecorder(store)),
+            make_stepper=_stepper_factory(scene, softmax, lambda store: ModuleRunRecorder(store), LLMOptions(llm, model, effort, bare, llm_actors)),
         )
         _echo_json([{"seed": r.seed, "path": r.path, "state_hash": r.state_hash, "steps": [_summarize(s) for s in r.steps]} for r in runs])
+
+
+if __name__ == "__main__":  # pragma: no cover
+    app()

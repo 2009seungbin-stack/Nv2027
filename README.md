@@ -76,3 +76,22 @@ src/cte/
 
 같은 seed는 id까지 같은 세계를 만든다(`deterministic_ids`). `run_branches` 는 원장을 fork해
 seed별 가지를 만들 뿐 평가하지 않는다(평가는 Phase 3 Taste Miner).
+
+## LLM 백엔드 (캐릭터 행동 후보)
+
+```bash
+uv pip install -e ".[anthropic]"                                   # anthropic 백엔드를 쓸 때만
+.venv/bin/cte step worlds/demo --llm claude-code -n 3               # 로컬 Claude Code 로그인(구독) 사용
+.venv/bin/cte step worlds/demo --llm anthropic --effort high -n 3   # ANTHROPIC_API_KEY 또는 `ant auth login`
+.venv/bin/cte step worlds/demo --llm claude-code --llm-actors junho  # 준호만 LLM, 나머지는 규칙 기반
+```
+
+- 두 백엔드 모두 모델이 받는 것은 **고정 시스템 프롬프트 + 그 인물의 CharacterContext JSON** 뿐이다.
+- `claude-code`: `claude -p` 를 **도구 0개**(`--tools ""`, MCP 차단), **빈 임시 작업 디렉터리**,
+  `--system-prompt` 대체, `--no-session-persistence` 로 실행한다. 원장·소스·CLAUDE.md가 보이지 않는다.
+  `--bare` 옵션은 훅·플러그인까지 끄지만 `ANTHROPIC_API_KEY` 가 필요하다.
+- `anthropic`: Messages API 구조화 출력(`output_config.format`), 기본 모델 `claude-opus-5-5`,
+  안전 분류기 거절 시 서버 측 대체 모델(`fallbacks: "default"`)이 기본으로 켜져 있다.
+- 응답은 스키마 → `ActionDraft` → `validate_against(context)` 를 통과해야 후보가 된다.
+  LLM 호출이 실패하면 규칙 기반 제안기로 대체되고, 실패 사유와 **LLM 원문 응답** 은 module run에 남는다.
+- 비용 감각: 실측 1회(데모, 준호, Opus 5.5 via Claude Code) 약 19초·$0.075. tick당 인물 수만큼 호출된다.

@@ -54,12 +54,18 @@ class LLMRequest(BaseModel):
 
 
 class LLMResponse(BaseModel):
-    """LLM 응답."""
+    """LLM 응답(원문을 그대로 보관한다 — module run에 기록되어 재생(replay)의 재료가 된다)."""
 
     text: str = Field(description="원문 응답.")
     parsed: dict[str, Any] | None = Field(default=None, description="구조화 파싱 결과.")
     model: str = Field(default="", description="응답한 모델 식별자.")
-    usage: dict[str, int] = Field(default_factory=dict, description="토큰 사용량.")
+    usage: dict[str, Any] = Field(default_factory=dict, description="토큰/비용 사용량.")
+    stop_reason: str | None = Field(default=None, description="종료 사유(end_turn, refusal 등).")
+    backend: str = Field(default="", description="어댑터 종류(anthropic-api, claude-code, scripted).")
+
+
+class LLMError(RuntimeError):
+    """LLM 호출이 쓸 수 있는 응답을 내지 못했다(네트워크, 거절, 스키마 위반, 프로세스 실패)."""
 
 
 class LLMClient(Protocol):
@@ -79,4 +85,4 @@ class ScriptedLLM:
         self.requests.append(request)
         if self.responses:
             return self.responses.pop(0)
-        return LLMResponse(text="{}", parsed={}, model="scripted")
+        return LLMResponse(text="{}", parsed={}, model="scripted", backend="scripted")

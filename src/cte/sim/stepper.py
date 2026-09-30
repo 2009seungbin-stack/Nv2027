@@ -128,7 +128,7 @@ class SceneStepper:
             with self._run("agent.propose", principal_kind="character", principal_id=actor, input=ctx, parent=parent) as h:
                 proposed = proposer.propose(ctx)
                 notes = list(getattr(proposer, "last_rejections", []))
-                h.set_output({"candidates": proposed, "rejections": notes})
+                h.set_output({"candidates": proposed, "rejections": notes, "llm_response": getattr(proposer, "last_response", None)})
             valid: list[ActionCandidate] = []
             for cand in proposed:
                 try:
