@@ -8,6 +8,7 @@
 | `reference/massage_001.txt` | 저장소 소유자 본인의 원고(「마사지 해드립니다」 1화), 교보재로 저장 허락 | 사람이 쓴 기준 원고 |
 | `reference/massage_001.annotations.json` | 분석 주석 | 장치별 인용·범주·CTE 대응 층·학습 대상 여부 |
 | `contrast/massage_001_llm_default.txt` | **합성**(Claude가 LLM 기본값 경향을 일부러 모아 씀) | 대조군 — 원고가 아니다 |
+| `tuning/rin_gift/` | Claude 원고 + 작가 반응(원문) | 조율 기록 — 집필 때는 `final.txt` 만 본다. 자세한 건 폴더 README |
 
 ## 원고 표기 규약
 
